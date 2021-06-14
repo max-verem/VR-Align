@@ -114,13 +114,19 @@ static VOID OnPaint(HDC hdc, instance_h* instance)
 
     SolidBrush
         brush_white(Color(255, 255, 255, 255)),
-        brush_black(Color(255, 0, 0, 0)),
-        brush_green(Color(255, 0, 80, 0)); // ARGB
-
-    graphics.FillRectangle(&brush_green, 0, 0, (int)instance->window_size[0], (int)instance->window_size[1]);
+        brush_black(Color(255, 0, 0, 0));
+//        brush_green(Color(255, 0, 80, 0)); // ARGB
 
     graphics.SetPageUnit(Gdiplus::UnitPixel);
     graphics.SetSmoothingMode(Gdiplus::SmoothingModeNone);
+
+    graphics.FillRectangle(&brush_black, 0, 0, (int)instance->window_size[0], (int)instance->window_size[1]);
+    graphics.FillRectangle(&brush_white,
+        instance->chess_board_offset[0] - instance->chess_board_step / 2,
+        instance->chess_board_offset[1] - instance->chess_board_step / 2,
+        (instance->chess_board_dim[0] + 1) * instance->chess_board_step,
+        (instance->chess_board_dim[1] + 1) * instance->chess_board_step
+    );
 
     for (int j = 0; j < instance->chess_board_dim[1]; j++)
         for (int i = 0; i < instance->chess_board_dim[0]; i++)
