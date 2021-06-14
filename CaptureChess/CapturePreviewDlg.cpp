@@ -209,6 +209,8 @@ void CCapturePreviewDlg::OnClose()
 		m_selectedDevice.Release();
 	}
 
+    ImageWriter::UnInitialize();
+
 	// Release all DeckLinkDevice instances
 	for (auto& device : m_inputDevices)
 	{
@@ -441,6 +443,19 @@ void CCapturePreviewDlg::EnableInterface(bool enabled)
 	}
 }
 
+static HRESULT GetDeckLinkVideoConversion(IDeckLinkVideoConversion **deckLinkVideoConversion)
+{
+    HRESULT result = S_OK;
+
+    result = CoCreateInstance(CLSID_CDeckLinkVideoConversion, NULL, CLSCTX_ALL, IID_IDeckLinkVideoConversion, (void**)deckLinkVideoConversion);
+    if (FAILED(result))
+    {
+        fprintf(stderr, "A DeckLink video conversion interface could not be created.\n");
+    }
+
+    return result;
+}
+
 void CCapturePreviewDlg::VideoFrameArrived(CComPtr<IDeckLinkVideoInputFrame>& videoFrame)
 {
 	{
@@ -468,18 +483,18 @@ void CCapturePreviewDlg::VideoFrameArrived(CComPtr<IDeckLinkVideoInputFrame>& vi
 
                     q_to_euler(yawPitchRoll, quat);
 
-                    fprintf(f, "%8.4f, %8.4f, %8.4f", pos[0], pos[1], pos[2]);
+                    fprintf(f, "%f,%f,%f", pos[0], pos[1], pos[2]);
 
                     fprintf(f, "\t");
 
-                    fprintf(f, "%8.4f,%8.4f,%8.4f",
+                    fprintf(f, "%f,%f,%f",
                         yawPitchRoll[0] * 180.0 / 3.1415926,
                         yawPitchRoll[1] * 180.0 / 3.1415926,
                         yawPitchRoll[2] * 180.0 / 3.1415926);
 
                     fprintf(f, "\t");
 
-                    fprintf(f, "%8.4f, %8.4f, %8.4f, %8.4f", quat[0], quat[1], quat[2], quat[3]);
+                    fprintf(f, "%f,%f,%f,%f", quat[0], quat[1], quat[2], quat[3]);
 
                     fprintf(f, "\n");
                 }
@@ -489,7 +504,6 @@ void CCapturePreviewDlg::VideoFrameArrived(CComPtr<IDeckLinkVideoInputFrame>& vi
 
                 {
                     std::string pngFilename(path);
-                    IDeckLinkVideoConversion* deckLinkFrameConverter = NULL;
                     IDeckLinkVideoFrame* bgra32Frame = NULL;
 
                     if (videoFrame->GetPixelFormat() == bmdFormat8BitBGRA)
@@ -500,6 +514,8 @@ void CCapturePreviewDlg::VideoFrameArrived(CComPtr<IDeckLinkVideoInputFrame>& vi
                     }
                     else
                     {
+                        IDeckLinkVideoConversion* deckLinkFrameConverter = NULL;
+                        GetDeckLinkVideoConversion(&deckLinkFrameConverter);
                         bgra32Frame = new Bgra32VideoFrame(videoFrame->GetWidth(), videoFrame->GetHeight(), videoFrame->GetFlags());
                         deckLinkFrameConverter->ConvertFrame(videoFrame, bgra32Frame);
                     }
@@ -555,6 +571,8 @@ BOOL	CCapturePreviewDlg::OnInitDialog()
 	// Disable the interface
 	m_startStopButton.EnableWindow(FALSE);
 	EnableInterface(false);
+
+    ImageWriter::Initialize();
 
     for (auto status_id : vrpn_status_ids)
     {

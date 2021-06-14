@@ -123,7 +123,7 @@ HRESULT ImageWriter::WriteBgra32VideoFrameToPNG(IDeckLinkVideoFrame* bgra32Video
 	if (FAILED(result))
 		goto bail;
 
-	result = fileStream->InitializeFromFilename((LPCWSTR)(LPCTSTR)filename, GENERIC_WRITE);
+	result = fileStream->InitializeFromFilename(CT2W(filename), GENERIC_WRITE);
 	if (FAILED(result))
 		goto bail;
 
