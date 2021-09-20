@@ -1,0 +1,80 @@
+#ifndef calc_tracking_model_h
+#define calc_tracking_model_h
+
+#define calc_tracking_model calc_tracking_model_v1
+
+static void calc_tracking_model_v1
+(
+    const q_xyz_quat_type stk,  /* rotation/position of static tracker */
+    const q_xyz_quat_type mnt,  /* rotation/position of motion tracker */
+    const q_xyz_quat_type arm,  /* rotation of mounted tracker and arm vector*/
+    const q_xyz_quat_type ref,  /* reference position, static tracker real position */
+    q_xyz_quat_type &trk,       /* montion tracker recalced */
+    q_xyz_quat_type &cam        /* real camera optic center rotation and position */
+)
+{
+    q_xyz_quat_type stk_z, arm_r;
+
+    wt_rot_mask(&stk, 1.0, 0.0, 0.0, &stk_z);
+
+    // calc tracker
+    wt_A_to_B
+    (
+        &stk_z,  // static tracker
+        &ref,
+        &mnt,    // mounted tracker
+        &trk
+    );
+
+    // temp
+    cam = trk;
+
+    // do prerot of motion tracker
+    q_mult(cam.quat, arm.quat, trk.quat);
+
+    // arm vec rotation
+    q_xform(arm_r.xyz, trk.quat, arm.xyz);
+    q_vec_add(cam.xyz, trk.xyz, arm_r.xyz);
+};
+
+static void calc_tracking_model_v0
+(
+    const q_xyz_quat_type stk,  /* rotation/position of static tracker */
+    const q_xyz_quat_type mnt,  /* rotation/position of motion tracker */
+    const q_xyz_quat_type arm,  /* rotation of mounted tracker and arm vector*/
+    const q_xyz_quat_type ref,  /* reference position, static tracker real position */
+    q_xyz_quat_type &trk,       /* montion tracker recalced */
+    q_xyz_quat_type &cam        /* real camera optic center rotation and position */
+)
+{
+    q_type quat, rot_z, rot_z_i, rot_x, rot_x_i;
+    q_vec_type vec, stk_yawPitchRoll;
+
+    // prerotate quat for Z axis
+    q_to_euler(stk_yawPitchRoll, stk.quat);
+    q_from_euler(rot_z, stk_yawPitchRoll[0], 0, 0);
+    q_invert(rot_z_i, rot_z);
+
+    // find system/scene rotation
+    q_copy(rot_x, ref.quat);
+    q_invert(rot_x_i, rot_x);
+
+    // find motion tracker quat
+    q_mult(trk.quat, mnt.quat, rot_z_i);
+    q_mult(trk.quat, trk.quat, rot_x_i);
+
+    // find the position of motion tracker
+    q_vec_subtract(vec, mnt.xyz, stk.xyz);
+    q_xform(vec, rot_z, vec);
+    q_vec_add(trk.xyz, vec, ref.xyz);
+    q_xform(trk.xyz, rot_x, trk.xyz);
+
+    // do prerot of motion tracker
+    q_mult(cam.quat, arm.quat, trk.quat);
+
+    // process arm
+    q_invert(quat, cam.quat);
+    q_xform(vec, quat, arm.xyz);
+    q_vec_add(cam.xyz, trk.xyz, vec);
+}
+#endif

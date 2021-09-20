@@ -4,11 +4,7 @@
 
     for submodules and submodules of submodules...
 */
-#define _CRT_SECURE_NO_WARNINGS
-
 #include <stdio.h>
-#include <time.h>
-#include <math.h>
 
 #include "instance.h"
 
@@ -20,116 +16,12 @@
 using namespace Gdiplus;
 #pragma comment (lib,"Gdiplus.lib")
 
-#pragma comment(lib, "quatlib.lib")
-
 static volatile int done = 0;
-
-static void stars_save(instance_h* instance)
-{
-    FILE *f;
-    char name[128];
-
-    snprintf(name, sizeof(name), "%lld.h", time(NULL));
-
-    f = fopen(name, "wt");
-    if (!f)
-    {
-        fprintf(stderr, "Failed to create file [%s]\n", name);
-        return;
-    };
-
-    fprintf(f, "const static int stars_screen_width = %d;\n", instance->window_size[0]);
-    fprintf(f, "const static int stars_screen_height = %d;\n", instance->window_size[1]);
-    fprintf(f, "const static int stars_screen_cnt = %d;\n", instance->stars_count);
-    fprintf(f, "static const struct\n");
-    fprintf(f, "{\n");
-    fprintf(f, "    double x, y;\n");
-    fprintf(f, "} stars_screen_refs[] =\n");
-    fprintf(f, "{\n");
-    for (int i = 0; i < instance->stars_count; i++)
-    {
-        fprintf(f, "    {%f, %f},\n", instance->stars[i][0], instance->stars[i][1]);
-    };
-    fprintf(f, "    {-1, -1}\n");
-    fprintf(f, "};\n");
-
-    fclose(f);
-
-    printf("Saved data to file [%s]\n", name);
-}
-
-static void stars_generate(instance_h* instance, bool redraw = false)
-{
-    double
-        rW = instance->window_size[0] - 2 * instance->screen_sa,
-        rH = instance->window_size[1] - 2 * instance->screen_sa;
-
-    for (int i = 0; i < instance->stars_count; i++)
-    {
-        for(int c = 0; c < 1000; c++)
-        {
-            int j;
-            double dmin = 10000.0;
-
-            instance->stars[i][0] = rW * rand() / RAND_MAX + instance->screen_sa;
-            instance->stars[i][1] = rH * rand() / RAND_MAX + instance->screen_sa;
-
-            for (j = 0; j < (i - 1); j++)
-            {
-                double d = q_vec_distance(instance->stars[i], instance->stars[j]);
-                if (d < dmin)
-                    dmin = d;
-            };
-
-            if (!i || dmin > instance->stars_sa)
-                break;
-        }
-    }
-
-    if (instance->hWnd)
-        InvalidateRect(instance->hWnd, NULL, TRUE);
-}
 
 static int key_cmd(int c, instance_h* instance)
 {
     switch (c)
     {
-        case 's':
-            stars_save(instance);
-            break;
-
-        case 'r':
-            stars_generate(instance, true);
-            break;
-
-        case '+':
-            instance->stars_count += 5;
-            stars_generate(instance, true);
-            break;
-
-        case '-':
-            instance->stars_count += 5;
-            stars_generate(instance, true);
-            break;
-
-        case 'z':
-            if (instance->stars_radius < 20)
-            {
-                instance->stars_radius += 1;
-                if (instance->hWnd)
-                    InvalidateRect(instance->hWnd, NULL, TRUE);
-            };
-            break;
-
-        case 'x':
-            if (instance->stars_radius > 0)
-            {
-                instance->stars_radius -= 1;
-                if (instance->hWnd)
-                    InvalidateRect(instance->hWnd, NULL, TRUE);
-            };
-            break;
-
         default:
             fprintf(stderr, "\nhere [%c]\n", c);
     }
@@ -221,16 +113,24 @@ static VOID OnPaint(HDC hdc, instance_h* instance)
 
     SolidBrush
         brush_white(Color(255, 255, 255, 255)),
-        brush_black(Color(255, 0, 0, 0)),
-        brush_green(Color(255, 0, 250, 0)); // ARGB
+        brush_black(Color(255, 0, 0, 0));
 
-    graphics.FillRectangle(&brush_black, 0, 0, (int)instance->window_size[0], (int)instance->window_size[1]);
+    graphics.SetPageUnit(Gdiplus::UnitPixel);
+    graphics.SetSmoothingMode(Gdiplus::SmoothingModeNone);
+    graphics.FillRectangle(&brush_white, 0, 0, (int)instance->window_size[0], (int)instance->window_size[1]);
 
-    for (int i = 0; i < instance->stars_count; i++)
-        graphics.FillEllipse(&brush_green,
-            instance->stars[i][0] - instance->stars_radius,
-            instance->stars[i][1] - instance->stars_radius,
-            2 * instance->stars_radius, 2 * instance->stars_radius);
+    for (int j = 0; j < instance->chess_board_dim[1]; j++)
+        for (int i = 0; i < instance->chess_board_dim[0]; i++)
+        {
+            Rect rect
+            (
+                instance->chess_board_offset[0] + i * instance->chess_board_step,
+                instance->chess_board_offset[1] + j * instance->chess_board_step,
+                instance->chess_board_step, instance->chess_board_step
+            );
+
+            graphics.FillRectangle(((i + j) & 1) ? &brush_white : &brush_black, rect);
+        };
 }
 
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
@@ -304,40 +204,19 @@ int main(int argc, char** argv)
     instance->window_size[0] = 1000;
     instance->window_size[1] = 500;
 
-    instance->stars_count = 50;
-    instance->stars_radius = 3;
-    instance->screen_sa = 100;
-    instance->stars_sa = 30;
+    instance->chess_board_offset[0] = 100;
+    instance->chess_board_offset[1] = 50;
 
-#define ARG_CHECK_BEGIN(PARAM_NAME, PARAMS_CNT) if (!strcmp("--" PARAM_NAME, argv[i]) && (PARAMS_CNT + 3) < argc) {
+    instance->chess_board_dim[0] = 10;
+    instance->chess_board_dim[1] = 7;
+
+    instance->chess_board_step = 60;
+
+#define ARG_CHECK_BEGIN(PARAM_NAME, PARAMS_CNT) if (!strcmp("--" PARAM_NAME, argv[i]) && (PARAMS_CNT + i) < argc) {
 #define ARG_CHECK_END(PARAMS_CNT) i += PARAMS_CNT + 1; }
 
     for (i = 1; i < argc;)
     {
-#if 0
-        if (!strcmp("--camera_arm", argv[i]) && (i + 3) < argc)
-        {
-            instance->camera_arm[0] = atof(argv[i + 1]);
-            instance->camera_arm[1] = atof(argv[i + 2]);
-            instance->camera_arm[2] = atof(argv[i + 3]);
-            i += 4;
-        }
-        else if (!strcmp("v_screen_pos", argv[i]) && (i + 3) < argc)
-        {
-            instance->v_screen_pos[0] = atof(argv[i + 1]);
-            instance->v_screen_pos[1] = atof(argv[i + 2]);
-            instance->v_screen_pos[2] = atof(argv[i + 3]);
-            i += 4;
-        }
-        else if (!strcmp("v_screen_size", argv[i]) && (i + 3) < argc)
-        {
-            instance->v_screen_size[0] = atof(argv[i + 1]);
-            instance->v_screen_size[1] = atof(argv[i + 2]);
-            instance->v_screen_size[2] = atof(argv[i + 3]);
-            i += 4;
-        }
-        else
-#endif
         ARG_CHECK_BEGIN("window-pos", 2)
             instance->window_pos[0] = atoi(argv[i + 1]);
             instance->window_pos[1] = atoi(argv[i + 2]);
@@ -348,20 +227,18 @@ int main(int argc, char** argv)
             instance->window_size[1] = atoi(argv[i + 2]);
         ARG_CHECK_END(2)
         else
-        ARG_CHECK_BEGIN("stars-count", 1)
-            instance->stars_count = atoi(argv[i + 1]);
-        ARG_CHECK_END(1)
+        ARG_CHECK_BEGIN("chess-board-offset", 2)
+            instance->chess_board_offset[0] = atoi(argv[i + 1]);
+            instance->chess_board_offset[1] = atoi(argv[i + 2]);
+        ARG_CHECK_END(2)
         else
-        ARG_CHECK_BEGIN("stars-radius", 1)
-            instance->stars_radius = atoi(argv[i + 1]);
-        ARG_CHECK_END(1)
+        ARG_CHECK_BEGIN("chess-board-dim", 2)
+            instance->chess_board_dim[0] = atoi(argv[i + 1]);
+            instance->chess_board_dim[1] = atoi(argv[i + 2]);
+        ARG_CHECK_END(2)
         else
-        ARG_CHECK_BEGIN("screen-sa", 1)
-            instance->screen_sa = atoi(argv[i + 1]);
-        ARG_CHECK_END(1)
-        else
-        ARG_CHECK_BEGIN("stars-sa", 1)
-            instance->screen_sa = atoi(argv[i + 1]);
+        ARG_CHECK_BEGIN("chess-board-step", 1)
+            instance->chess_board_step = atoi(argv[i + 1]);
         ARG_CHECK_END(1)
         else
         {
@@ -369,10 +246,6 @@ int main(int argc, char** argv)
             exit(1);
         };
     };
-
-    // generate stars
-    srand((unsigned)time(NULL));
-    stars_generate(instance);
 
     // This handles all kinds of signals.
     SetConsoleCtrlHandler(handleConsoleSignalsWin, TRUE);
@@ -445,12 +318,6 @@ int main(int argc, char** argv)
     }
 
     GdiplusShutdown(gdiplusToken);
-
-#if 0
-    /* main sleep */
-    while (!done)
-        Sleep(100);
-#endif
 
     return 0;
 };
