@@ -43,7 +43,7 @@ static void print_xyz_quat(const char* name, const q_xyz_quat_type *trg)
 
     q_to_euler(yawPitchRoll, trg->quat);
 
-    printf("%s = [%6.3f, %6.3f, %6.3f] @ {%9.5f', %9.5f', %9.5f'} [%8.5f, %8.5f, %8.5f, %8.5f]\n",
+    printf("%s = [%6.3f, %6.3f, %6.3f] @ {%10.5f', %10.5f', %10.5f'} [%8.5f, %8.5f, %8.5f, %8.5f]\n",
         name,
         trg->xyz[0], trg->xyz[1], trg->xyz[2],
         Q_RAD_TO_DEG(yawPitchRoll[0]),

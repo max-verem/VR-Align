@@ -9,33 +9,57 @@
 
 static vrpn_TRACKERCB first_data;
 static int first_flag = 1;
+static q_xyz_quat_type prev;
 
 static void VRPN_CALLBACK vrpn_handle_tracker(void* userData, const vrpn_TRACKERCB t)
 {
-#if 0
-    q_vec_type pos;
-    q_type quat;
-
-    pos[0] = t.pos[0];
-    pos[1] = t.pos[1];
-    pos[2] = t.pos[2];
-
-    quat[0] = t.quat[0];
-    quat[1] = t.quat[1];
-    quat[2] = t.quat[2];
-    quat[3] = t.quat[3];
-#else
     if (first_flag)
     {
         first_flag = 0;
         first_data = t;
     }
+    else
+    {
+        q_type q;
+        q_xyz_quat_type delta;
+        q_vec_type yawPitchRoll;
 
-    printf("%8.6f,%8.6f,%8.6f\n",
-        t.pos[0]/* - first_data.pos[0]*/,
-        t.pos[1]/* - first_data.pos[1]*/,
-        t.pos[2]/* - first_data.pos[2]*/);
-#endif
+        q_vec_subtract(delta.xyz, t.pos, prev.xyz);
+        q_invert(q, prev.quat);
+        q_mult(delta.quat, t.quat, q);
+
+        q_to_euler(yawPitchRoll, delta.quat);
+
+        printf
+        (
+            "%8.6f,%8.6f,%8.6f,%8.6f,%8.6f,%8.6f,%8.6f,%8.6f,%8.6f,%8.6f,%8.6f,%8.6f,%8.6f,%8.6f,%8.6f,%8.6f,%8.6f\n",
+
+            t.pos[0],
+            t.pos[1],
+            t.pos[2],
+
+            t.quat[0],
+            t.quat[1],
+            t.quat[2],
+            t.quat[3],
+
+            1000.0 * delta.xyz[0],
+            1000.0 * delta.xyz[1],
+            1000.0 * delta.xyz[2],
+
+            delta.quat[0],
+            delta.quat[1],
+            delta.quat[2],
+            delta.quat[3],
+
+            Q_RAD_TO_DEG(yawPitchRoll[0]),
+            Q_RAD_TO_DEG(yawPitchRoll[1]),
+            Q_RAD_TO_DEG(yawPitchRoll[2])
+        );
+    };
+
+    q_copy(prev.quat, t.quat);
+    q_vec_copy(prev.xyz, t.pos);
 };
 
 
@@ -49,10 +73,12 @@ int main(int argc, char** argv)
         exit(1);
     }
 
+    memset(&prev, 0, sizeof(prev));
+
     vrpn_trk = new vrpn_Tracker_Remote(argv[1]);
     vrpn_trk->register_change_handler(NULL, vrpn_handle_tracker);
 
-    printf("X,Y,Z\n");
+    printf("PX,PY,PZ,QX,QY,QZ,QW,dPX,dPY,dPZ,dQX,dQY,dQZ,dQW,dYaw,dPitch,dRoll\n");
 
     while (1) vrpn_trk->mainloop();
 

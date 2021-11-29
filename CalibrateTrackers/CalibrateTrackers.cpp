@@ -42,7 +42,7 @@ static double avg_quats_diff
     double l = 0;
     q_xyz_quat_type dst;
 
-    avg_xyz_quat_v0(rot_diffs, &dst);
+    avg_xyz_quat_v1(rot_diffs, &dst);
 
     avg = dst;
 
@@ -202,6 +202,7 @@ static double task_find_pos2(q_xyz_quat_type *arm, q_xyz_quat_type *ref, int f_c
             for (avgs[i] = 0, j = 0; j < chess_results.size(); j++)
             {
                 double d = q_vec_distance(chess_results[j]->pose.xyz, cams[j].xyz);
+
                 if (f_criteria_maximal)
                 {
                     if (avgs[i] < d)
@@ -482,7 +483,7 @@ static int task_cam_diff(q_xyz_quat_type *arm, q_xyz_quat_type *ref)
         //            print_xyz_quat("    trk", &trks[i]);
         //            print_xyz_quat("     cv", &chess_results[i]->pose);
         //            print_xyz_quat("    cam", &cams[i]);
-        printf("%4.2f ", q_vec_distance(vec0, diff.xyz));
+        printf("%5.3f ", q_vec_distance(vec0, diff.xyz));
         print_xyz_quat("   diff", &diff);
         //            printf("\n");
     };
@@ -490,6 +491,18 @@ static int task_cam_diff(q_xyz_quat_type *arm, q_xyz_quat_type *ref)
     return 0;
 }
 
+static void q_from_euler_grad(q_type q, const double yaw, const double pitch, const double roll)
+{
+    q_from_euler(q, Q_DEG_TO_RAD(yaw), Q_DEG_TO_RAD(pitch), Q_DEG_TO_RAD(roll));
+};
+
+static void xyz_from_euler_grad(q_xyz_quat_type* p, const double x, const double y, const double z, const double yaw, const double pitch, const double roll)
+{
+    q_from_euler_grad(p->quat, yaw, pitch, roll);
+    p->xyz[0] = x;
+    p->xyz[1] = y;
+    p->xyz[2] = z;
+};
 
 int main(int argc, char** argv)
 {
@@ -592,7 +605,7 @@ int main(int argc, char** argv)
             calc_quats_diff(&arm, &ref, trks, cams, rot_diffs, 1);
         }
         printf("-----------------------------------------------------------------------------------\n");
-
+#if 0
         printf("executing [find_pos]\n");
         task_find_pos(&arm, &ref);
         print_xyz_quat("REF", &ref);
@@ -601,7 +614,7 @@ int main(int argc, char** argv)
         printf("--------------------- cameras differences ----------------------------------------\n");
         task_cam_diff(&arm, &ref);
         printf("----------------------------------------------------------------------------------\n");
-
+#endif
         printf("executing [find_pos2]\n");
         task_find_pos2(&arm, &ref, 1);
         print_xyz_quat("REF", &ref);
@@ -682,6 +695,58 @@ int main(int argc, char** argv)
         task_find_ref_pos(&arm, &ref);
         print_xyz_quat("REF", &ref);
         print_xyz_quat("ARM", &arm);
+    }
+    else if (!strcmp("test1", task))
+    {
+        q_xyz_quat_type _stk, pos1, pos2;
+
+        xyz_from_euler_grad(&ref,
+            0.1, 0.2, 1.51,
+            0.0, 0.0, 0.0);
+
+        xyz_from_euler_grad(&_stk,
+            -0.0287, -0.7474, -0.5767,
+            -179.7824, -9.5294, 178.4949);
+
+        xyz_from_euler_grad(&pos1,
+            -0.0062, -0.7430, -0.6816,
+            -179.4741, 2.6124, 179.4423);
+
+        xyz_from_euler_grad(&pos2,
+            -0.0052, -0.7438, -0.6825,
+            -179.5517, -1.9056, 179.4723);
+
+        print_xyz_quat("ref", &ref);
+        print_xyz_quat("_stk", &_stk);
+
+        for (i = 0; i < 100; i++)
+        {
+            q_xyz_quat_type _mnt;
+
+            for (j = 0; j < 3; j++)
+                _mnt.xyz[j] = pos1.xyz[j] + (pos2.xyz[j] - pos1.xyz[j]) * i / 100.0;
+
+            q_slerp(_mnt.quat, pos1.quat, pos2.quat, i / 100.0);
+
+            printf("\n");
+            print_xyz_quat("_mnt", &_mnt);
+
+            q_xyz_quat_type stk, mnt, trk, cam;
+
+            wt_openvr_to_ue(&_stk, &stk);
+            wt_openvr_to_ue(&_mnt, &mnt);
+
+            print_xyz_quat("\tstk", &stk);
+            print_xyz_quat("\tmnt", &mnt);
+
+            wt_calc_two_trackers_model_a(&stk, &mnt, &arm, &ref, &trk, &cam);
+
+            print_xyz_quat("\t\ttrk", &trk);
+            print_xyz_quat("\t\tcam", &cam);
+        }
+
+//    print_xyz_quat("REF", &ref);
+//    print_xyz_quat("ARM", &arm);
     }
     else
     {
