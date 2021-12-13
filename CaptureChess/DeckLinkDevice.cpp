@@ -41,6 +41,7 @@
 #include "stdafx.h"
 #include <stdint.h>
 #include <comutil.h>
+#include <stdexcept>
 #include "DeckLinkDevice.h"
 
 DeckLinkDevice::DeckLinkDevice(CComPtr<IDeckLink>& device) : 

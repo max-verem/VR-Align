@@ -63,6 +63,9 @@ const char* about =
         "  If input comes from video, press any key for next frame\n"
         "  To finish capturing, press 'ESC' key and calibration starts.\n";
 const char* keys  =
+        "{all      | false | Add all images }"
+        "{nohint   | false | Do not save images with detected markers }"
+        "{dpi      |       | DPI for ids used for board }"
         "{vm       |       | mode to select for cam, 1920x1080@25 for example}"
         "{w        |       | Number of squares in X direction }"
         "{h        |       | Number of squares in Y direction }"
@@ -168,8 +171,8 @@ int main(int argc, char *argv[]) {
 
     int squaresX = parser.get<int>("w");
     int squaresY = parser.get<int>("h");
-    float squareLength = parser.get<float>("sl");
-    float markerLength = parser.get<float>("ml");
+    float squareLength = parser.get<float>("sl") / (parser.has("dpi") ? parser.get<float>("dpi") : 1.0);
+    float markerLength = parser.get<float>("ml") / (parser.has("dpi") ? parser.get<float>("dpi") : 1.0);
     int dictionaryId = parser.get<int>("d");
     string outputFile = parser.get<string>(0);
 
@@ -227,8 +230,8 @@ int main(int argc, char *argv[]) {
                 cerr << "Failed to parse [" << parser.get<string>("vm") << "]" << endl;
         };
 
-        std::cout << "getBackendName=" << inputVideo.getBackendName() << endl;
-        std::cout << "CAP_PROP_FRAME_WIDTH=" << inputVideo.get(CAP_PROP_FRAME_WIDTH) << ", CAP_PROP_FRAME_HEIGHT=" << inputVideo.get(CAP_PROP_FRAME_HEIGHT) << ", CAP_PROP_FPS=" << inputVideo.get(CAP_PROP_FPS) << endl;
+        std::cerr << "getBackendName=" << inputVideo.getBackendName() << endl;
+        std::cerr << "CAP_PROP_FRAME_WIDTH=" << inputVideo.get(CAP_PROP_FRAME_WIDTH) << ", CAP_PROP_FRAME_HEIGHT=" << inputVideo.get(CAP_PROP_FRAME_HEIGHT) << ", CAP_PROP_FPS=" << inputVideo.get(CAP_PROP_FPS) << endl;
         waitTime = 10;
     }
 
@@ -281,10 +284,10 @@ int main(int argc, char *argv[]) {
                 Point(10, 20), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(255, 0, 0), 2);
 
         imshow("out", imageCopy);
-        char key = (char)waitKey(waitTime);
+        char key = parser.get<bool>("all") ? 'c' : (char)waitKey(waitTime);
         if(key == 27) break;
         if(key == 'c' && ids.size() > 0) {
-            cout << "Frame captured" << endl;
+            cerr << "Frame captured: " << saved_images << endl;
             allCorners.push_back(corners);
             allIds.push_back(ids);
             allImgs.push_back(image);
@@ -297,8 +300,10 @@ int main(int argc, char *argv[]) {
                 imwrite(tmp, image);
             }
 
-            snprintf(tmp, sizeof(tmp), "calibrate_camera_charuco_%lld_detect_%03d.png", start_time, saved_images);
-            imwrite(tmp, imageCopy);
+            if (!parser.get<bool>("nohint")) {
+                snprintf(tmp, sizeof(tmp), "calibrate_camera_charuco_%lld_detect_%03d.png", start_time, saved_images);
+                imwrite(tmp, imageCopy);
+            }
 
             saved_images++;
         }
@@ -331,11 +336,15 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    cerr << "calibrateCameraAruco.... ";
+
     // calibrate camera using aruco markers
     double arucoRepErr;
     arucoRepErr = aruco::calibrateCameraAruco(allCornersConcatenated, allIdsConcatenated,
                                               markerCounterPerFrame, board, imgSize, cameraMatrix,
                                               distCoeffs, noArray(), noArray(), calibrationFlags);
+
+    cerr << arucoRepErr << endl;
 
     // prepare data for charuco calibration
     int nFrames = (int)allCorners.size();
@@ -344,6 +353,8 @@ int main(int argc, char *argv[]) {
     vector< Mat > filteredImages;
     allCharucoCorners.reserve(nFrames);
     allCharucoIds.reserve(nFrames);
+
+    cerr << "interpolateCornersCharuco ";
 
     for(int i = 0; i < nFrames; i++) {
         // interpolate using camera parameters
@@ -355,17 +366,25 @@ int main(int argc, char *argv[]) {
         allCharucoCorners.push_back(currentCharucoCorners);
         allCharucoIds.push_back(currentCharucoIds);
         filteredImages.push_back(allImgs[i]);
+
+        cerr << ".";
     }
+
+    cerr << endl;
 
     if(allCharucoCorners.size() < 4) {
         cerr << "Not enough corners for calibration" << endl;
         return 0;
     }
 
+    cerr << "calibrateCameraCharuco.... ";
+
     // calibrate camera using charuco
     repError =
         aruco::calibrateCameraCharuco(allCharucoCorners, allCharucoIds, charucoboard, imgSize,
                                       cameraMatrix, distCoeffs, rvecs, tvecs, calibrationFlags);
+
+    cerr << repError << endl;
 
     bool saveOk =  saveCameraParams(outputFile, imgSize, aspectRatio, calibrationFlags,
                                     cameraMatrix, distCoeffs, repError);
@@ -374,9 +393,9 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    cout << "Rep Error: " << repError << endl;
-    cout << "Rep Error Aruco: " << arucoRepErr << endl;
-    cout << "Calibration saved to " << outputFile << endl;
+    cerr << "Rep Error: " << repError << endl;
+    cerr << "Rep Error Aruco: " << arucoRepErr << endl;
+    cerr << "Calibration saved to " << outputFile << endl;
 
     // show interpolated charuco corners for debugging
     if(showChessboardCorners) {

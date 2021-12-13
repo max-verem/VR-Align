@@ -20,11 +20,10 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{BB575E4D-CE3E-44A6-86E0-D752B0FFC016}</ProjectGuid>
+    <ProjectGuid>{9E25E80B-0383-40C3-9ACA-29DBB189439A}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>detect_aruco_markers</RootNamespace>
+    <RootNamespace>CalibrateTrackers2</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>detect_aruco_markers</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -105,7 +104,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir);D:\SDK\opencv-4.5.4\build\x64\vc15\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OutDir);D:\SDK\opencv-4.5.3\build\x64\vc14\lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -117,7 +116,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>../submodules/vrpn;../submodules/vrpn/quat;D:\SDK\opencv-4.5.4\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\opencv-4.5.4\include\;../submodules/vrpn/quat;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -143,7 +142,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir);D:\SDK\opencv-4.5.4\build\x64\vc15\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OutDir);D:\SDK\opencv-4.5.3\build\x64\vc14\lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -157,7 +156,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>../submodules/vrpn;../submodules/vrpn/quat;D:\SDK\opencv-4.5.4\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\SDK\opencv-4.5.4\include\;../submodules/vrpn/quat;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -168,7 +167,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="detect_markers.cpp" />
+    <ClCompile Include="..\common\avg_xyz_quat.cpp" />
+    <ClCompile Include="..\common\wt.c" />
+    <ClCompile Include="..\common\wt_cv.cpp" />
+    <ClCompile Include="CalibrateTrackers2.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\common\avg_xyz_quat.h" />
+    <ClInclude Include="..\common\print_vecs.h" />
+    <ClInclude Include="..\common\wt.h" />
+    <ClInclude Include="..\common\wt_cv.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
